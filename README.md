@@ -86,7 +86,7 @@ OnionChat is for communities that value privacy: journalists, activists, researc
 
 ```bash
 # Build
-git clone https://github.com/yourname/onionchat.git
+git clone https://github.com/ranonimolan-wq/onionchat.git
 cd onionchat
 cargo build --release
 
@@ -109,7 +109,7 @@ Type messages and press Enter. Type `/help` for commands. Press `Esc` to quit.
 ### From source (recommended)
 
 ```bash
-git clone https://github.com/yourname/onionchat.git
+git clone https://github.com/ranonimolan-wq/onionchat.git
 cd onionchat
 cargo build --release
 # Binary: target/release/onionchat
