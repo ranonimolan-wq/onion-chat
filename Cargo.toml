@@ -1,0 +1,26 @@
+[package]
+name = "onionchat"
+version = "0.1.0"
+edition = "2024"
+description = "Tor-supported P2P E2EE multi-user chat with file transfer"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = { version = "0.23" }
+tungstenite = { version = "0.22" }
+futures = "0.3"
+x25519-dalek = "2"
+aes-gcm = { version = "0.10", features = ["alloc"] }
+sha2 = "0.10"
+rand = { version = "0.8", features = ["getrandom"] }
+ratatui = { version = "0.20", features = ["crossterm"] }
+crossterm = "0.27"
+clap = { version = "4.4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+anyhow = "1.0"
+async-trait = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio-util = { version = "0.7", features = ["io"] }
+tokio-stream = { version = "0.1.18", features = ["net"] }
