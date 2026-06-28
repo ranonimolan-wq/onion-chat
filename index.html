@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OnionChat — Tor-supported P2P E2EE Chat</title>
+<meta name="description" content="OnionChat is a terminal-based, anonymity-first chat application built in Rust. Tor-supported, end-to-end encrypted, multi-user.">
+<meta name="author" content="OnionChat Developers">
+<meta property="og:title" content="OnionChat — Tor-supported P2P E2EE Chat">
+<meta property="og:description" content="Terminal-based, anonymity-first chat in Rust. E2EE, Tor, multi-peer.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-soft: #161b22;
+    --bg-card: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-soft: #8b949e;
+    --accent: #58a6ff;
+    --accent-soft: #1f6feb;
+    --green: #3fb950;
+    --purple: #bc8cff;
+    --yellow: #d29922;
+    --red: #f85149;
+    --onion: #9b6dff;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  a { color: var(--accent); text-decoration: none; transition: color 0.2s; }
+  a:hover { color: var(--purple); }
+  code {
+    font-family: var(--mono);
+    background: var(--bg-soft);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: var(--green);
+    border: 1px solid var(--border);
+  }
+  pre {
+    font-family: var(--mono);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin: 16px 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--text);
+  }
+  .terminal-comment { color: var(--text-soft); }
+  .terminal-prompt { color: var(--green); }
+  .terminal-cmd { color: var(--accent); }
+  .terminal-output { color: var(--text-soft); }
+  .terminal-flag { color: var(--yellow); }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+  /* Hero */
+  .hero {
+    position: relative;
+    padding: 120px 0 80px;
+    text-align: center;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle at 50% 50%, rgba(155, 109, 255, 0.08) 0%, transparent 50%);
+    animation: pulse 8s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 0.85rem;
+    color: var(--text-soft);
+    margin-bottom: 32px;
+  }
+  .hero-badge .dot {
+    width: 8px; height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--green);
+    animation: blink 2s infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .hero h1 {
+    font-size: clamp(2.5rem, 7vw, 4.5rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, var(--text) 0%, var(--onion) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero .tagline {
+    font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+    color: var(--text-soft);
+    margin-bottom: 12px;
+    font-weight: 400;
+  }
+  .hero .subtitle {
+    font-size: 1rem;
+    color: var(--text-soft);
+    margin-bottom: 40px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .hero-cta {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 48px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+  }
+  .btn-primary {
+    background: var(--accent-soft);
+    color: white;
+    border-color: var(--accent-soft);
+  }
+  .btn-primary:hover {
+    background: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(31, 111, 235, 0.3);
+  }
+  .btn-secondary {
+    background: var(--bg-soft);
+    color: var(--text);
+    border-color: var(--border);
+  }
+  .btn-secondary:hover {
+    background: var(--bg-card);
+    border-color: var(--accent);
+  }
+  .hero-stats {
+    display: flex;
+    gap: 48px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 40px;
+  }
+  .stat { text-align: center; }
+  .stat-num {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--onion);
+    font-family: var(--mono);
+  }
+  .stat-label {
+    font-size: 0.85rem;
+    color: var(--text-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Terminal preview */
+  .terminal-preview {
+    max-width: 800px;
+    margin: 60px auto 0;
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  }
+  .terminal-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-soft);
+    border-bottom: 1px solid var(--border);
+  }
+  .terminal-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+  }
+  .terminal-dot.red { background: #ff5f56; }
+  .terminal-dot.yellow { background: #ffbd2e; }
+  .terminal-dot.green { background: #27c93f; }
+  .terminal-title {
+    margin-left: auto;
+    font-size: 0.85rem;
+    color: var(--text-soft);
+    font-family: var(--mono);
+  }
+  .terminal-body {
+    padding: 20px;
+    font-family: var(--mono);
+    font-size: 0.875rem;
+    line-height: 1.7;
+    min-height: 280px;
+  }
+  .terminal-line { white-space: pre-wrap; word-break: break-word; }
+  .cursor {
+    display: inline-block;
+    width: 8px; height: 16px;
+    background: var(--green);
+    animation: blink 1s infinite;
+    vertical-align: text-bottom;
+    margin-left: 2px;
+  }
+
+  /* Sections */
+  section { padding: 80px 0; }
+  .section-title {
+    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+  }
+  .section-subtitle {
+    text-align: center;
+    color: var(--text-soft);
+    font-size: 1.1rem;
+    margin-bottom: 56px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Features grid */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+  }
+  .feature-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    transition: all 0.3s;
+  }
+  .feature-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+  }
+  .feature-icon {
+    font-size: 2rem;
+    margin-bottom: 16px;
+  }
+  .feature-card h3 {
+    font-size: 1.25rem;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+  .feature-card p {
+    color: var(--text-soft);
+    font-size: 0.95rem;
+  }
+
+  /* Quick start */
+  .quick-start {
+    background: var(--bg-soft);
+    border-radius: 16px;
+    padding: 48px;
+    border: 1px solid var(--border);
+  }
+  .quick-start h3 {
+    margin-bottom: 24px;
+    color: var(--text);
+    font-size: 1.3rem;
+  }
+  .quick-start .step {
+    margin-bottom: 24px;
+  }
+  .quick-start .step:last-child { margin-bottom: 0; }
+  .quick-start .step-label {
+    color: var(--yellow);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Commands */
+  .commands-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .command-group {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .command-group h4 {
+    color: var(--purple);
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .command-group .cmd {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+    color: var(--green);
+  }
+  .command-group .cmd-desc {
+    font-size: 0.8rem;
+    color: var(--text-soft);
+    margin-bottom: 10px;
+    margin-left: 12px;
+  }
+
+  /* Anonymity */
+  .anonymity-box {
+    background: linear-gradient(135deg, rgba(155, 109, 255, 0.1), rgba(88, 166, 255, 0.05));
+    border: 1px solid var(--onion);
+    border-radius: 16px;
+    padding: 40px;
+    text-align: center;
+  }
+  .anonymity-box .icon { font-size: 3rem; margin-bottom: 16px; }
+  .anonymity-box h3 { font-size: 1.5rem; margin-bottom: 16px; }
+  .anonymity-box p { color: var(--text-soft); max-width: 600px; margin: 0 auto 24px; }
+  .anonymity-list {
+    text-align: left;
+    max-width: 500px;
+    margin: 0 auto;
+    list-style: none;
+  }
+  .anonymity-list li {
+    padding: 8px 0;
+    color: var(--text-soft);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .anonymity-list li::before {
+    content: '✓';
+    color: var(--green);
+    font-weight: bold;
+    flex-shrink: 0;
+  }
+
+  /* Architecture */
+  .arch-diagram {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    overflow-x: auto;
+  }
+  .arch-modules {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 24px;
+  }
+  .arch-module {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    transition: border-color 0.2s;
+  }
+  .arch-module:hover { border-color: var(--accent); }
+  .arch-module .name {
+    font-family: var(--mono);
+    color: var(--green);
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+  }
+  .arch-module .desc {
+    font-size: 0.8rem;
+    color: var(--text-soft);
+  }
+
+  /* CTA */
+  .cta {
+    text-align: center;
+    padding: 80px 0;
+  }
+  .cta h2 {
+    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    margin-bottom: 16px;
+  }
+  .cta p {
+    color: var(--text-soft);
+    margin-bottom: 32px;
+    font-size: 1.1rem;
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 40px 0;
+    text-align: center;
+    color: var(--text-soft);
+    font-size: 0.9rem;
+  }
+  footer a { margin: 0 8px; }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .hero { padding: 80px 0 60px; }
+    .hero-stats { gap: 24px; }
+    .quick-start { padding: 24px; }
+    .anonymity-box { padding: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Hero -->
+<header class="hero">
+  <div class="container">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      <span>v0.1.0 · 281 tests passing · GPL-3.0</span>
+    </div>
+    <h1>OnionChat</h1>
+    <p class="tagline">Tor-supported P2P E2EE multi-user chat</p>
+    <p class="subtitle">
+      A terminal-based, anonymity-first chat application built in Rust.
+      End-to-end encrypted. No accounts. No telemetry. Just privacy.
+    </p>
+    <div class="hero-cta">
+      <a href="#quick-start" class="btn btn-primary">
+        <span>⚡</span> Quick Start
+      </a>
+      <a href="https://github.com/yourname/onionchat" class="btn btn-secondary">
+        <span>📦</span> View on GitHub
+      </a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-num">12</div>
+        <div class="stat-label">Modules</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">281</div>
+        <div class="stat-label">Tests</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">0</div>
+        <div class="stat-label">Unsafe blocks</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">100%</div>
+        <div class="stat-label">Open source</div>
+      </div>
+    </div>
+
+    <!-- Terminal preview -->
+    <div class="terminal-preview">
+      <div class="terminal-header">
+        <span class="terminal-dot red"></span>
+        <span class="terminal-dot yellow"></span>
+        <span class="terminal-dot green"></span>
+        <span class="terminal-title">onionchat — hub</span>
+      </div>
+      <div class="terminal-body" id="terminal-demo">
+        <div class="terminal-line"><span class="terminal-comment"># Start a hub</span></div>
+        <div class="terminal-line"><span class="terminal-prompt">$</span> <span class="terminal-cmd">onionchat</span> <span class="terminal-flag">--listen</span> 8080 <span class="terminal-flag">--multi</span></div>
+        <div class="terminal-line"><span class="terminal-output">Hub modu başlatıldı. Dinleme: 0.0.0.0:8080</span></div>
+        <div class="terminal-line"><span class="terminal-output">Sen admin'sin (hub operator). /help ile komutları gör.</span></div>
+        <div class="terminal-line"> </div>
+        <div class="terminal-line"><span class="terminal-comment"># Peer connects</span></div>
+        <div class="terminal-line"><span class="terminal-output">Peer bağlandı: peer-1</span></div>
+        <div class="terminal-line">[13:24] &lt; peer-1  merhaba dünya 🧅</div>
+        <div class="terminal-line">[13:24] &gt; selam nasılsın</div>
+        <div class="terminal-line">[13:25] &lt; peer-1  *iyiyim* teşekkürler :heart:</div>
+        <div class="terminal-line"> </div>
+        <div class="terminal-line"><span class="terminal-prompt">Mesaj &gt;</span> <span class="cursor"></span></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Features -->
+<section id="features">
+  <div class="container">
+    <h2 class="section-title">Built for privacy</h2>
+    <p class="section-subtitle">
+      Every feature designed with anonymity as the foundation, not an afterthought.
+    </p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🔐</div>
+        <h3>End-to-end encrypted</h3>
+        <p>X25519 ECDHE key exchange + AES-256-GCM authenticated encryption. Every message is encrypted before it leaves your machine.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🧅</div>
+        <h3>Tor support</h3>
+        <p>Route connections through Tor SOCKS5, or expose your hub as a Tor hidden service. Your IP stays yours.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">👥</div>
+        <h3>Multi-user hubs</h3>
+        <p>Star topology with broadcast. The hub operator is admin and can promote others, kick, mute, and configure at runtime.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📺</div>
+        <h3>Terminal-native TUI</h3>
+        <p>Built with ratatui + crossterm. No browser, no Electron, no telemetry. Just a fast, keyboard-driven interface.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📄</div>
+        <h3>File transfer</h3>
+        <p>Chunked v2 protocol with 64 KiB blocks, path-traversal protection, and configurable max size. Encrypted end-to-end.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🎨</div>
+        <h3>Markdown & emoji</h3>
+        <p><code>*bold*</code>, <code>_italic_</code>, <code>`code`</code>, and 30+ emoji shortcodes like <code>:onion:</code> 🧅</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚙️</div>
+        <h3>config.json driven</h3>
+        <p>Everything configurable: history, roles, anonymity, permissions. Change settings at runtime with <code>/config set</code>.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🌍</div>
+        <h3>UTF-8 / Turkish</h3>
+        <p>Full multi-byte character support. ş, ğ, ü, ö, ç, ı, İ — all work in messages, nicks, commands, and file paths.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <h3>Zero unsafe code</h3>
+        <p>The entire codebase is <code>unsafe</code>-free. Rust's ownership model guarantees memory safety without compromise.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Quick Start -->
+<section id="quick-start">
+  <div class="container">
+    <h2 class="section-title">Quick start</h2>
+    <p class="section-subtitle">Up and running in 60 seconds.</p>
+    <div class="quick-start">
+      <h3>📋 Prerequisites</h3>
+      <pre><code><span class="terminal-comment"># Rust 1.96+ (stable)</span>
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+<span class="terminal-comment"># (Optional) Tor for anonymity features</span>
+sudo apt install tor  <span class="terminal-comment"># Debian/Ubuntu</span></code></pre>
+
+      <div class="step">
+        <div class="step-label">Step 1 — Clone & build</div>
+        <pre><code>git clone https://github.com/yourname/onionchat.git
+cd onionchat
+cargo build --release
+<span class="terminal-comment"># Binary: target/release/onionchat</span></code></pre>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Step 2 — Start a hub (Terminal 1)</div>
+        <pre><code><span class="terminal-comment"># Listen on port 8080, accept multiple peers</span>
+./target/release/onionchat <span class="terminal-flag">--listen</span> 8080 <span class="terminal-flag">--multi</span></code></pre>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Step 3 — Connect as a peer (Terminal 2)</div>
+        <pre><code>./target/release/onionchat <span class="terminal-flag">--connect</span> 127.0.0.1:8080</code></pre>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Step 4 — Chat!</div>
+        <pre><code><span class="terminal-comment"># Type a message and press Enter</span>
+merhaba dünya 🧅
+
+<span class="terminal-comment"># Use slash commands</span>
+/help          <span class="terminal-comment"># Show all commands</span>
+/nick alice    <span class="terminal-comment"># Set your nickname</span>
+/who           <span class="terminal-comment"># List connected peers</span>
+
+<span class="terminal-comment"># Press Esc to quit</span></code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Commands -->
+<section id="commands">
+  <div class="container">
+    <h2 class="section-title">Slash commands</h2>
+    <p class="section-subtitle">Everything is keyboard-driven. No menus, no mice.</p>
+    <div class="commands-grid">
+      <div class="command-group">
+        <h4>💬 Basic</h4>
+        <div class="cmd">/help</div>
+        <div class="cmd-desc">Show all commands</div>
+        <div class="cmd">/quit</div>
+        <div class="cmd-desc">Quit (Esc also works)</div>
+        <div class="cmd">/clear [N]</div>
+        <div class="cmd-desc">Clear screen (N = last N msgs)</div>
+        <div class="cmd">/nick &lt;name&gt;</div>
+        <div class="cmd-desc">Set your nickname</div>
+        <div class="cmd">/who</div>
+        <div class="cmd-desc">List connected peers + roles</div>
+        <div class="cmd">/role [nick]</div>
+        <div class="cmd-desc">Show role</div>
+      </div>
+      <div class="command-group">
+        <h4>🛠️ Admin</h4>
+        <div class="cmd">/on_admin &lt;nick&gt;</div>
+        <div class="cmd-desc">Promote to admin</div>
+        <div class="cmd">/off_admin &lt;nick&gt;</div>
+        <div class="cmd-desc">Demote from admin</div>
+        <div class="cmd">/kick &lt;nick&gt;</div>
+        <div class="cmd-desc">Kick a peer</div>
+        <div class="cmd">/mute &lt;nick&gt;</div>
+        <div class="cmd-desc">Mute a peer</div>
+        <div class="cmd">/unmute &lt;nick&gt;</div>
+        <div class="cmd-desc">Unmute a peer</div>
+      </div>
+      <div class="command-group">
+        <h4>⚙️ Config</h4>
+        <div class="cmd">/config</div>
+        <div class="cmd-desc">Show current config</div>
+        <div class="cmd">/config set &lt;k&gt; &lt;v&gt;</div>
+        <div class="cmd-desc">Change a setting</div>
+        <div class="cmd">/send &lt;path&gt;</div>
+        <div class="cmd-desc">Send a file</div>
+      </div>
+      <div class="command-group">
+        <h4>⌨️ Keys</h4>
+        <div class="cmd">Enter</div>
+        <div class="cmd-desc">Send message</div>
+        <div class="cmd">Esc / Ctrl+C</div>
+        <div class="cmd-desc">Quit</div>
+        <div class="cmd">↑ / ↓</div>
+        <div class="cmd-desc">Scroll history</div>
+        <div class="cmd">← / →</div>
+        <div class="cmd-desc">Move cursor</div>
+        <div class="cmd">Home / End</div>
+        <div class="cmd-desc">Jump to start/end</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Anonymity -->
+<section id="anonymity">
+  <div class="container">
+    <div class="anonymity-box">
+      <div class="icon">🧅</div>
+      <h3>Anonymity is the foundation</h3>
+      <p>
+        Most chat apps trust a central server with your metadata. OnionChat is built differently —
+        your IP is never displayed, history is off by default, and Tor is a first-class citizen.
+      </p>
+      <ul class="anonymity-list">
+        <li>Peer addresses are hidden — shown as <code>peer-&lt;id&gt;</code></li>
+        <li>History is OFF by default (anonymity-first)</li>
+        <li>No accounts, no phone numbers, no email</li>
+        <li>No telemetry, no analytics, no phone-home</li>
+        <li>Tor SOCKS5 for client connections (<code>--anon</code>)</li>
+        <li>Tor hidden service for hubs (<code>--hidden-service</code>)</li>
+        <li><code>strip_metadata: true</code> by default in config</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- Architecture -->
+<section id="architecture">
+  <div class="container">
+    <h2 class="section-title">Modular architecture</h2>
+    <p class="section-subtitle">12 modules, each with a single responsibility. Strict boundaries.</p>
+    <div class="arch-diagram">
+      <pre><code><span class="terminal-comment"># Protocol flow</span>
+
+Client (connect)                          Server (listen)
+─────────────────                          ────────────────
+TCP connection ───────────────────────────►
+pub_key[32] send ──────────────────────►
+                    pub_key[32] read ◄──── pub_key[32] send
+pub_key[32] read ◄────────────────────────
+AES key derived (both sides)
+Connection ready
+send_message(text) ──[len|nonce|ct]─────►</code></pre>
+
+      <div class="arch-modules">
+        <div class="arch-module">
+          <div class="name">crypto.rs</div>
+          <div class="desc">X25519 + AES-256-GCM</div>
+        </div>
+        <div class="arch-module">
+          <div class="name">network.rs</div>
+          <div class="desc">TCP + ECDHE + framing</div>
+        </div>
+        <div class="arch-module">
+          <div class="name">socks5.rs</div>
+          <div class="desc">RFC 1928 SOCKS5 client</div>
+        </div>
+        <div class="arch-module">
+          <div class="name">tor_control.rs</div>
+          <div class="desc">Hidden service (ADD_ONION)</div>
+        </div>
+        <div class="arch-module">
+          <div class="name">chat.rs</div>
+          <div class="desc">Message protocol</div>
+        </div>
+        <div class="arch-module">
+          <div class="name">file_transfer.rs</div>
+          <div class="desc">Chunked v2 transfer</div>
+        </div>
+        <div class="arch-module">
+          <div class="name">ui.rs</div>
+          <div class="desc">ratatui TUI</div>
+        </div>
+        <div class="arch-module">
+          <div class="name">config.rs</div>
+          <div class="desc">config.json</div>
+        </div>
+        <div class="arch-module">
+          <div class="name">roles.rs</div>
+          <div class="desc">RBAC + PeerRegistry</div>
+        </div>
+        <div class="arch-module">
+          <div class="name">commands.rs</div>
+          <div class="desc">Slash command parser</div>
+        </div>
+        <div class="arch-module">
+          <div class="name">history.rs</div>
+          <div class="desc">JSON Lines persistence</div>
+        </div>
+        <div class="arch-module">
+          <div class="name">markdown.rs</div>
+          <div class="desc">Inline format + emoji</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <div class="container">
+    <h2>Ready to chat privately?</h2>
+    <p>Clone the repo, build, and start your first hub in 60 seconds.</p>
+    <div class="hero-cta">
+      <a href="#quick-start" class="btn btn-primary">
+        <span>⚡</span> Get Started
+      </a>
+      <a href="https://github.com/yourname/onionchat/blob/main/CONTRIBUTING.md" class="btn btn-secondary">
+        <span>🤝</span> Contribute
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <p>
+      <strong>OnionChat</strong> ·
+      <a href="https://github.com/yourname/onionchat">GitHub</a> ·
+      <a href="https://github.com/yourname/onionchat/blob/main/README.md">README</a> ·
+      <a href="https://github.com/yourname/onionchat/blob/main/CONTRIBUTING.md">Contributing</a> ·
+      <a href="https://github.com/yourname/onionchat/blob/main/readme-ai-ai-rules.md">AI Rules</a>
+    </p>
+    <p style="margin-top: 16px;">
+      Licensed under GPL-3.0 · Anonymity is not a feature, it's the foundation. 🧅
+    </p>
+  </div>
+</footer>
+
+<script>
+  // Smooth scroll for anchor links
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+      e.preventDefault();
+      const target = document.querySelector(this.getAttribute('href'));
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+
+  // Animated terminal cursor — already CSS animated, but add typing effect
+  // on load for the demo terminal (optional enhancement)
+  (function() {
+    const terminal = document.getElementById('terminal-demo');
+    if (!terminal) return;
+    // Subtle fade-in
+    terminal.style.opacity = '0';
+    terminal.style.transition = 'opacity 0.8s ease';
+    setTimeout(() => {
+      terminal.style.opacity = '1';
+    }, 300);
+  })();
+
+  // Lazy reveal sections on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.opacity = '1';
+        entry.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('section').forEach(section => {
+    section.style.opacity = '0';
+    section.style.transform = 'translateY(20px)';
+    section.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+    observer.observe(section);
+  });
+</script>
+
+</body>
+</html>
